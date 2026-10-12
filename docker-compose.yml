@@ -1,8 +1,9 @@
 services:
   burnarr:
-    build: .
+    # Immagine costruita da GitHub Actions a ogni push su main (aggiornata da Watchtower).
+    # Per provare modifiche in locale: docker build -t ghcr.io/sossiogll/burnarr:latest .
+    image: ghcr.io/sossiogll/burnarr:latest
     container_name: burnarr
-    image: burnarr:latest
     restart: unless-stopped
     networks:
       - homeserver
