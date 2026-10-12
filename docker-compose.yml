@@ -1,0 +1,48 @@
+services:
+  burnarr:
+    build: .
+    container_name: burnarr
+    image: burnarr:latest
+    restart: unless-stopped
+    networks:
+      - homeserver
+      - npm_net
+    ports:
+      - "8090:8000"
+    devices:
+      - "/dev/sr0:/dev/sr0"
+    # wodim/growisofs accedono al device via SCSI generic; su molti kernel
+    # serve CAP_SYS_RAWIO oltre al mapping del device. Se il drive risulta
+    # inaccessibile, in ultima istanza si può passare a "privileged: true",
+    # ma con SYS_RAWIO + gruppo cdrom funziona nella maggior parte dei casi.
+    cap_add:
+      - SYS_RAWIO   # ioctl SCSI generic richiesti da wodim/growisofs
+      - IPC_LOCK    # mlockall() di wodim, per evitare buffer underrun
+    # Tetto memlock alzato: wodim fa mmap di buffer fino a ~12 MB e li blocca
+    # in RAM. Senza questo dà "Cannot raise RLIMIT_MEMLOCK" prima di scrivere.
+    ulimits:
+      memlock: -1
+    # Il gid 24 (cdrom) è il default su Debian/Ubuntu. L'entrypoint allinea
+    # comunque l'utente al gid reale del device esposto.
+    group_add:
+      - "24"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - ADMIN_USER=${ADMIN_USER}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-9000}
+      - DRIVE_DEVICE=/dev/sr0
+    volumes:
+      - ${DOCKER_DIR}/burnarr/data:/data
+      - ${HDD}/ISO:/data/iso:ro
+
+networks:
+  homeserver:
+    external: true
+  # rete del progetto "homeserver" (NPM & co.), per raggiungere burnarr per nome dal reverse proxy
+  npm_net:
+    external: true
+    name: homeserver_homeserver

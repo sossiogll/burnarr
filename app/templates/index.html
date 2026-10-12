@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Burnarr</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%2300c896' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%2300c896'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Burnarr</h1>
+    </div>
+    <button id="theme-toggle" class="icon-btn" title="Cambia tema" aria-label="Cambia tema">
+      <span class="theme-icon">◐</span>
+    </button>
+  </header>
+
+  <main class="container">
+
+    <!-- Modalità "esplora disco" — mostrata SOLO quando il drive ha un disco con dati -->
+    <div id="browse-mode" hidden>
+      <section class="card browse-card" id="browse-card">
+        <div class="browse-header">
+          <h2>Sfoglia il disco</h2>
+          <button class="link" id="browse-refresh">aggiorna</button>
+        </div>
+        <div class="browse-volume" id="browse-volume"></div>
+        <input type="search" id="browse-filter" placeholder="Cerca tra i file…" class="browse-search">
+        <div class="browse-meta" id="browse-meta"></div>
+        <div class="browse-list" id="browse-list">
+          <div class="empty">Lettura del disco in corso…</div>
+        </div>
+        <div class="browse-actions">
+          <button class="btn btn-secondary" id="browse-eject">Espelli disco</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modalità "masterizza" — tutto il flusso, mostrato quando il drive è vuoto/blank o c'è un job -->
+    <div id="burn-mode">
+
+    <!-- Stato del drive -->
+    <section class="card drive-card" id="drive-card">
+      <div class="drive-state">
+        <div class="state-icon" id="state-icon">●</div>
+        <div class="state-text">
+          <div class="state-title" id="state-title">Caricamento stato...</div>
+          <div class="state-sub" id="state-sub"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sorgente -->
+    <section class="card">
+      <h2>Sorgente</h2>
+      <div class="tabs">
+        <button class="tab active" data-tab="upload">Carica un ISO</button>
+        <button class="tab" data-tab="library">Scegli dal server</button>
+        <button class="tab" data-tab="files">Crea disco dai file</button>
+      </div>
+
+      <div class="tab-panel" id="panel-upload">
+        <div class="dropzone" id="dropzone">
+          <div class="dz-icon">⬆</div>
+          <div class="dz-text">Trascina qui un file <code>.iso</code> o <code>.img</code></div>
+          <div class="dz-sub">oppure</div>
+          <label class="btn btn-secondary">
+            Sfoglia file
+            <input type="file" id="file-input" accept=".iso,.img" hidden>
+          </label>
+          <div class="upload-progress" id="upload-progress" hidden>
+            <div class="upload-bar"><div class="upload-bar-fill" id="upload-bar-fill"></div></div>
+            <div class="upload-info" id="upload-info">Caricamento...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="panel-library" hidden>
+        <div class="file-list" id="file-list">
+          <div class="empty">Nessun file disponibile.</div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="panel-files" hidden>
+        <div class="dropzone dropzone-multi" id="dropzone-files">
+          <div class="dz-icon">🗂</div>
+          <div class="dz-text">Trascina qui foto, documenti o intere cartelle</div>
+          <div class="dz-sub">oppure</div>
+          <label class="btn btn-secondary">
+            Scegli file
+            <input type="file" id="files-input" multiple hidden>
+          </label>
+          <label class="btn btn-secondary">
+            Scegli cartella
+            <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+          </label>
+        </div>
+
+        <div class="staging-list" id="staging-list" hidden>
+          <div class="staging-header">
+            <span id="staging-count">0 file</span>
+            <span id="staging-size">0 MB</span>
+            <button class="link" id="staging-clear">svuota</button>
+          </div>
+          <div class="staging-items" id="staging-items"></div>
+          <div class="staging-uploads" id="staging-uploads"></div>
+        </div>
+
+        <div class="label-row" id="label-row" hidden>
+          <label for="iso-label">Etichetta del disco</label>
+          <input type="text" id="iso-label" maxlength="32" placeholder="LE_MIE_FOTO">
+          <span class="label-hint">max 32 caratteri, lettere/numeri/_</span>
+        </div>
+      </div>
+
+      <div class="selected" id="selected" hidden>
+        <div class="selected-label">File selezionato:</div>
+        <div class="selected-name" id="selected-name"></div>
+        <button class="link" id="clear-selection">rimuovi</button>
+      </div>
+    </section>
+
+    <!-- Opzioni e bottone masterizza -->
+    <section class="card">
+      <details class="advanced">
+        <summary>Opzioni avanzate</summary>
+        <div class="opt-grid">
+          <label class="opt">
+            <span>Velocità</span>
+            <select id="opt-speed">
+              <option value="auto" selected>Automatica</option>
+              <option value="4">4x</option>
+              <option value="8">8x</option>
+              <option value="16">16x</option>
+              <option value="max">Massima</option>
+            </select>
+          </label>
+          <label class="opt opt-check">
+            <input type="checkbox" id="opt-verify">
+            <span>Verifica disco dopo la masterizzazione</span>
+          </label>
+          <label class="opt opt-check">
+            <input type="checkbox" id="opt-eject" checked>
+            <span>Espelli il disco al termine</span>
+          </label>
+        </div>
+      </details>
+
+      <button id="burn-btn" class="btn btn-primary btn-large" disabled>
+        Masterizza
+      </button>
+      <div class="burn-hint" id="burn-hint">Seleziona una sorgente e inserisci un disco vuoto.</div>
+    </section>
+
+    <!-- Progresso -->
+    <section class="card progress-card" id="progress-card" hidden>
+      <div class="progress-header">
+        <h2 id="progress-title">Masterizzazione in corso</h2>
+        <button class="btn btn-danger btn-small" id="cancel-btn">Annulla</button>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="progress-percent">0%</span>
+        <span id="progress-speed"></span>
+        <span id="progress-eta"></span>
+      </div>
+      <details class="raw-log">
+        <summary>Mostra log dettagliato</summary>
+        <pre id="raw-log-content"></pre>
+      </details>
+    </section>
+
+    <!-- Storico -->
+    <section class="card">
+      <div class="history-header">
+        <h2>Storico</h2>
+        <button class="link" id="refresh-history">aggiorna</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="empty">Nessuna masterizzazione registrata.</div>
+      </div>
+    </section>
+
+    </div><!-- /burn-mode -->
+
+  </main>
+
+  <footer class="footer">
+    <span>Burnarr · homelab edition</span>
+  </footer>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
